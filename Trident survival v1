@@ -21,7 +21,7 @@ local function createPlayerESP(model)
     local highlight = Instance.new("Highlight")
     highlight.Name = "ESP_HIGHLIGHT"
     highlight.Adornee = model
-    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+    highlight.FillColor = Color3.fromRGB(255, 0, 255)  -- Lila Farbe für Player ESP
     highlight.FillTransparency = 0.5
     highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
     highlight.OutlineTransparency = 0
@@ -46,7 +46,7 @@ local function createPlayerESP(model)
     label.Parent = billboard
 
     RunService.RenderStepped:Connect(function()
-        if model and hrp and middlePart and middlePart:IsDescendantOf(Workspace) then
+        if playerESPEnabled and model and hrp and middlePart and middlePart:IsDescendantOf(Workspace) then
             local dist = (hrp.Position - middlePart.Position).Magnitude
             label.Text = "Player [" .. math.floor(dist) .. "m]"
         end
@@ -54,11 +54,16 @@ local function createPlayerESP(model)
 end
 
 local function updatePlayerESP()
-    for _, obj in ipairs(Workspace:GetChildren()) do
-        if obj:IsA("Model") and obj:FindFirstChild("HumanoidRootPart") then
-            if playerESPEnabled then
+    if playerESPEnabled then
+        for _, obj in ipairs(Workspace:GetChildren()) do
+            if obj:IsA("Model") and obj:FindFirstChild("HumanoidRootPart") then
                 createPlayerESP(obj)
-            else
+            end
+        end
+    else
+        -- Entfernen der Highlights und Billboards, wenn deaktiviert
+        for _, obj in ipairs(Workspace:GetChildren()) do
+            if obj:IsA("Model") then
                 if obj:FindFirstChild("ESP_HIGHLIGHT") then obj.ESP_HIGHLIGHT:Destroy() end
                 if obj:FindFirstChild("ESP_BILLBOARD") then obj.ESP_BILLBOARD:Destroy() end
             end
@@ -67,14 +72,25 @@ local function updatePlayerESP()
 end
 
 Workspace.ChildAdded:Connect(function(child)
-    if child:IsA("Model") then
+    if playerESPEnabled and child:IsA("Model") then
         child.ChildAdded:Connect(function(grandChild)
-            if grandChild.Name == "HumanoidRootPart" and playerESPEnabled then
+            if grandChild.Name == "HumanoidRootPart" then
                 createPlayerESP(child)
             end
         end)
-        if child:FindFirstChild("HumanoidRootPart") and playerESPEnabled then
+        if child:FindFirstChild("HumanoidRootPart") then
             createPlayerESP(child)
+        end
+    end
+end)
+
+Workspace.ChildRemoved:Connect(function(child)
+    if child:IsA("Model") then
+        if child:FindFirstChild("ESP_HIGHLIGHT") then
+            child.ESP_HIGHLIGHT:Destroy()
+        end
+        if child:FindFirstChild("ESP_BILLBOARD") then
+            child.ESP_BILLBOARD:Destroy()
         end
     end
 end)
@@ -113,7 +129,7 @@ local function createOreESP(model)
     label.Parent = billboard
 
     RunService.RenderStepped:Connect(function()
-        if part and middlePart then
+        if oreESPEnabled and part and middlePart then
             local dist = (part.Position - middlePart.Position).Magnitude
             label.Text = "Ore [" .. math.floor(dist) .. "m]"
         end
@@ -121,46 +137,84 @@ local function createOreESP(model)
 end
 
 local function updateOreESP()
-    for _, obj in ipairs(Workspace:GetChildren()) do
-        if obj:IsA("Model") and obj:FindFirstChild("Part") then
-            if oreESPEnabled then
+    if oreESPEnabled then
+        for _, obj in ipairs(Workspace:GetChildren()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Part") then
                 createOreESP(obj)
-            else
-                if obj.Part:FindFirstChild("ESP_BOX") then obj.Part.ESP_BOX:Destroy() end
-                if obj.Part:FindFirstChild("ESP_BILLBOARD") then obj.Part.ESP_BILLBOARD:Destroy() end
+            end
+        end
+    else
+        -- Entfernen der Ore ESP Boxen und Billboards, wenn deaktiviert
+        for _, obj in ipairs(Workspace:GetChildren()) do
+            if obj:IsA("Model") and obj:FindFirstChild("Part") then
+                if obj.Part:FindFirstChild("ESP_BOX") then
+                    obj.Part.ESP_BOX:Destroy()
+                end
+                if obj.Part:FindFirstChild("ESP_BILLBOARD") then
+                    obj.Part.ESP_BILLBOARD:Destroy()
+                end
             end
         end
     end
 end
 
 Workspace.ChildAdded:Connect(function(child)
-    if child:IsA("Model") then
+    if oreESPEnabled and child:IsA("Model") then
         child.ChildAdded:Connect(function(grandChild)
-            if grandChild.Name == "Part" and oreESPEnabled then
+            if grandChild.Name == "Part" then
                 createOreESP(child)
             end
         end)
     end
 end)
 
+Workspace.ChildRemoved:Connect(function(child)
+    if child:IsA("Model") and child:FindFirstChild("Part") then
+        if child.Part:FindFirstChild("ESP_BOX") then
+            child.Part.ESP_BOX:Destroy()
+        end
+        if child.Part:FindFirstChild("ESP_BILLBOARD") then
+            child.Part.ESP_BILLBOARD:Destroy()
+        end
+    end
+end)
+
 -- HITBOX (nur einmal pro Modell)
 local function applyHitbox()
-    for _, model in ipairs(Workspace:GetChildren()) do
-        if model:IsA("Model") and model:FindFirstChild("Torso") then
-            local torso = model.Torso
-            if not torso:FindFirstChild("HitboxTag") then
-                torso.Size = torso.Size * 4
-                torso.Transparency = 0.5
-                torso.CanCollide = false
-                torso.Massless = true
+    if hitboxEnabled then
+        for _, model in ipairs(workspace:GetChildren()) do
+            if model:IsA("Model") and model:FindFirstChild("Head") and not model:FindFirstChild("HitboxTag") then
+                local head = model.Head
+                head.Size = Vector3.new(13.377985000610352, 6.684992790222168, 6.684992790222168)
+                head.Transparency = 0.5 -- optional: sichtbar machen
+                head.CanCollide = false -- optional
+                head.Massless = true -- optional
 
                 local tag = Instance.new("BoolValue")
                 tag.Name = "HitboxTag"
-                tag.Parent = torso
+                tag.Parent = model
             end
         end
     end
 end
+
+Workspace.ChildAdded:Connect(function(child)
+    if hitboxEnabled and child:IsA("Model") and child:FindFirstChild("Head") then
+        applyHitbox()
+    end
+end)
+
+Workspace.ChildRemoved:Connect(function(child)
+    if hitboxEnabled and child:IsA("Model") and child:FindFirstChild("HitboxTag") then
+        local head = child:FindFirstChild("Head")
+        if head then
+            head.Size = Vector3.new(2, 2, 2) -- Wiederherstellen der ursprünglichen Größe oder andere Logik
+            head.CanCollide = true -- Optional: Zurücksetzen der Kollisionsverhalten
+            head.Massless = false -- Optional: Zurücksetzen
+        end
+        child:FindFirstChild("HitboxTag"):Destroy()
+    end
+end)
 
 -- TOGGLE FUNKTIONEN
 local function togglePlayerESP()
