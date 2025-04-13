@@ -1,0 +1,208 @@
+-- SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- STATUS
+local playerESPEnabled = false
+local oreESPEnabled = false
+local hitboxEnabled = false
+
+local middlePart = Workspace:WaitForChild("Const"):WaitForChild("Ignore"):WaitForChild("LocalCharacter"):WaitForChild("Middle")
+
+-- PLAYER ESP
+local function createPlayerESP(model)
+    local hrp = model:FindFirstChild("HumanoidRootPart")
+    if not hrp or model:FindFirstChild("ESP_HIGHLIGHT") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_HIGHLIGHT"
+    highlight.Adornee = model
+    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.Parent = model
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_BILLBOARD"
+    billboard.Adornee = hrp
+    billboard.Size = UDim2.new(0, 100, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = model
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0
+    label.Font = Enum.Font.SourceSansBold
+    label.TextScaled = true
+    label.Text = "Player"
+    label.Parent = billboard
+
+    RunService.RenderStepped:Connect(function()
+        if model and hrp and middlePart and middlePart:IsDescendantOf(Workspace) then
+            local dist = (hrp.Position - middlePart.Position).Magnitude
+            label.Text = "Player [" .. math.floor(dist) .. "m]"
+        end
+    end)
+end
+
+local function updatePlayerESP()
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("Model") and obj:FindFirstChild("HumanoidRootPart") then
+            if playerESPEnabled then
+                createPlayerESP(obj)
+            else
+                if obj:FindFirstChild("ESP_HIGHLIGHT") then obj.ESP_HIGHLIGHT:Destroy() end
+                if obj:FindFirstChild("ESP_BILLBOARD") then obj.ESP_BILLBOARD:Destroy() end
+            end
+        end
+    end
+end
+
+Workspace.ChildAdded:Connect(function(child)
+    if child:IsA("Model") then
+        child.ChildAdded:Connect(function(grandChild)
+            if grandChild.Name == "HumanoidRootPart" and playerESPEnabled then
+                createPlayerESP(child)
+            end
+        end)
+        if child:FindFirstChild("HumanoidRootPart") and playerESPEnabled then
+            createPlayerESP(child)
+        end
+    end
+end)
+
+-- ORE ESP
+local function createOreESP(model)
+    local part = model:FindFirstChild("Part")
+    if not part or part:FindFirstChild("ESP_BOX") then return end
+
+    local box = Instance.new("BoxHandleAdornment")
+    box.Name = "ESP_BOX"
+    box.Adornee = part
+    box.Size = part.Size
+    box.AlwaysOnTop = true
+    box.ZIndex = 5
+    box.Color3 = Color3.fromRGB(0, 255, 0)
+    box.Transparency = 0.5
+    box.Parent = part
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_BILLBOARD"
+    billboard.Adornee = part
+    billboard.Size = UDim2.new(0, 100, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = part
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0
+    label.Font = Enum.Font.SourceSansBold
+    label.TextScaled = true
+    label.Text = "Ore"
+    label.Parent = billboard
+
+    RunService.RenderStepped:Connect(function()
+        if part and middlePart then
+            local dist = (part.Position - middlePart.Position).Magnitude
+            label.Text = "Ore [" .. math.floor(dist) .. "m]"
+        end
+    end)
+end
+
+local function updateOreESP()
+    for _, obj in ipairs(Workspace:GetChildren()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Part") then
+            if oreESPEnabled then
+                createOreESP(obj)
+            else
+                if obj.Part:FindFirstChild("ESP_BOX") then obj.Part.ESP_BOX:Destroy() end
+                if obj.Part:FindFirstChild("ESP_BILLBOARD") then obj.Part.ESP_BILLBOARD:Destroy() end
+            end
+        end
+    end
+end
+
+Workspace.ChildAdded:Connect(function(child)
+    if child:IsA("Model") then
+        child.ChildAdded:Connect(function(grandChild)
+            if grandChild.Name == "Part" and oreESPEnabled then
+                createOreESP(child)
+            end
+        end)
+    end
+end)
+
+-- HITBOX (nur einmal pro Modell)
+local function applyHitbox()
+    for _, model in ipairs(Workspace:GetChildren()) do
+        if model:IsA("Model") and model:FindFirstChild("Torso") then
+            local torso = model.Torso
+            if not torso:FindFirstChild("HitboxTag") then
+                torso.Size = torso.Size * 4
+                torso.Transparency = 0.5
+                torso.CanCollide = false
+                torso.Massless = true
+
+                local tag = Instance.new("BoolValue")
+                tag.Name = "HitboxTag"
+                tag.Parent = torso
+            end
+        end
+    end
+end
+
+-- TOGGLE FUNKTIONEN
+local function togglePlayerESP()
+    playerESPEnabled = not playerESPEnabled
+    updatePlayerESP()
+end
+
+local function toggleOreESP()
+    oreESPEnabled = not oreESPEnabled
+    updateOreESP()
+end
+
+local function toggleHitbox()
+    hitboxEnabled = not hitboxEnabled
+    if hitboxEnabled then applyHitbox() end
+end
+
+-- UI (Rayfield)
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local Window = Rayfield:CreateWindow({
+    Name = "Lost's Trident Survival Hub",
+    LoadingTitle = "Loading LostHub",
+    LoadingSubtitle = "by LostRobbe",
+    ConfigurationSaving = {
+        Enabled = false,
+        FileName = "LostESPConfig"
+    }
+})
+
+local Tab = Window:CreateTab("Main")
+
+Tab:CreateButton({
+    Name = "Toggle Player ESP",
+    Callback = togglePlayerESP
+})
+
+Tab:CreateButton({
+    Name = "Toggle Ore ESP",
+    Callback = toggleOreESP
+})
+
+Tab:CreateButton({
+    Name = "Toggle Hitbox",
+    Callback = toggleHitbox
+})
